@@ -1,0 +1,30 @@
+# Compound Risk Intelligence Platform - Backend (Track A)
+# Python 3.11+ recommended
+# Install:  pip install -r requirements.txt
+
+# --- Web framework / API ---
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+pydantic==2.10.4
+python-dotenv==1.0.1
+
+# --- Agent orchestration ---
+# LangGraph for the orchestrator/fusion state machine.
+# (If we drop it for a hand-rolled state machine, these can be removed.)
+langgraph==0.2.60
+langchain-core==0.3.28
+
+# --- LLM: Claude API (orchestrator reasoning + RAG synthesis) ---
+anthropic==0.42.0
+
+# --- Regulatory RAG: vector store + embeddings ---
+chromadb==0.5.23
+sentence-transformers==3.3.1
+
+# --- Synthetic data generation & processing ---
+numpy==2.2.1
+pandas==2.2.3
+
+# --- Utilities ---
+httpx==0.28.1
+python-dateutil==2.9.0.post0
