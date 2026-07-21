@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getPermits, getZones, getRiskScores } from "../api/client";
-import { riskAccent, riskBgClass, riskLabel } from "../utils/riskColor";
+import { riskAccent, riskBgClass, riskLabel, formatPermitType } from "../utils/riskColor";
 
 const POLL_MS = 2000;
 
@@ -91,10 +91,10 @@ export default function PermitsPage() {
                       </p>
                     </td>
                     <td className="whitespace-nowrap px-5 py-4 text-slate-300">
-                      {p.type}
-                      {p.type === "Hot Work" && (
+                      {formatPermitType(p.type)}
+                      {(p.type === "hot_work" || p.type === "Hot Work") && (
                         <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">
-                          Fire Watch Required
+                          {p.fire_watch_logged ? "Fire Watch Logged" : "Fire Watch Required"}
                         </span>
                       )}
                     </td>

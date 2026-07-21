@@ -1,4 +1,4 @@
-import { riskAccent, riskLabel, riskBgClass, riskGlow } from "../utils/riskColor";
+import { riskAccent, riskLabel, riskBgClass, riskGlow, formatPermitType } from "../utils/riskColor";
 
 export default function ZoneDetailPanel({ zone, score, permits, onClose }) {
   if (!zone) return null;
@@ -82,12 +82,12 @@ export default function ZoneDetailPanel({ zone, score, permits, onClose }) {
                   key={p.permit_id}
                   className="surface-inset rounded-lg px-3 py-2"
                 >
-                  <p className="text-xs font-medium text-slate-300">{p.type}</p>
+                  <p className="text-xs font-medium text-slate-300">{formatPermitType(p.type)}</p>
                   <p className="font-mono text-[10px] text-slate-600">{p.permit_id}</p>
                   <p className="mt-0.5 text-[10px] text-slate-500">
                     {formatTime(p.start_time)} - {formatTime(p.end_time)}
                   </p>
-                  {p.type === "Hot Work" && (
+                  {(p.type === "hot_work" || p.type === "Hot Work") && !p.fire_watch_logged && (
                     <p className="mt-1 text-[10px] font-medium text-amber-400">
                       Fire watch: not logged
                     </p>

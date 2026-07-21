@@ -97,3 +97,14 @@ export function riskBgClass(score) {
   if (score < 80) return "bg-orange-500/15 text-orange-400";
   return "bg-red-500/15 text-red-400";
 }
+
+/** Formats raw permit types (e.g. hot_work -> Hot Work). */
+export function formatPermitType(type) {
+  if (!type) return "";
+  const map = {
+    hot_work: "Hot Work",
+    confined_space: "Confined Space Entry",
+    general_maintenance: "General Maintenance",
+  };
+  return map[type] || type;
+}

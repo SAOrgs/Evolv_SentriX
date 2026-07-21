@@ -34,6 +34,10 @@ export default function Dashboard() {
         setRiskScores(rs);
         setAlerts(al);
         setPermits(pm);
+        if (z.length > 0) {
+          const match = z.find((zone) => zone.zone_id === "zone-3" || zone.zone_id === "zone-c") || z[0];
+          if (match) setSelectedZoneId(match.zone_id);
+        }
       } catch (err) {
         console.error("Failed to load initial data:", err);
       } finally {

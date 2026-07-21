@@ -93,14 +93,31 @@ def _orch() -> Orchestrator:
     return STATE["orchestrator"]
 
 
-# --- Serialization helpers ------------------------------------------------
+# Default SVG floorplan layouts for plant zones
+ZONE_LAYOUTS = {
+    "zone-1": {"x": 80,  "y": 80,  "width": 170, "height": 120},
+    "zone-2": {"x": 340, "y": 60,  "width": 160, "height": 100},
+    "zone-3": {"x": 180, "y": 260, "width": 200, "height": 140},
+    "zone-4": {"x": 430, "y": 240, "width": 130, "height": 130},
+    "zone-5": {"x": 60,  "y": 430, "width": 490, "height": 75},
+}
+
+
 def _scale_zone(zone_id: str, name: str, x: float, y: float) -> dict:
-    """Map a normalized (0-1) zone into the 0-1000 floorplan space."""
+    """Map a normalized (0-1) zone into floorplan space with dimensions."""
+    layout = ZONE_LAYOUTS.get(zone_id, {
+        "x": round(x * COORD_SCALE, 1),
+        "y": round(y * COORD_SCALE, 1),
+        "width": 150,
+        "height": 100,
+    })
     return {
         "zone_id": zone_id,
         "name": name,
-        "x": round(x * COORD_SCALE, 1),
-        "y": round(y * COORD_SCALE, 1),
+        "x": layout["x"],
+        "y": layout["y"],
+        "width": layout["width"],
+        "height": layout["height"],
     }
 
 

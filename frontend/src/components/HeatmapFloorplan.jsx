@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { riskFill, riskAccent, riskGlow } from "../utils/riskColor";
+import { riskFill, riskAccent, riskGlow, formatPermitType } from "../utils/riskColor";
 
 // ---------------------------------------------------------------------------
 const VB_W = 620;
@@ -172,7 +172,7 @@ export default function HeatmapFloorplan({
                       fontSize="7" fontFamily="sans-serif"
                       fill="rgba(255,255,255,0.45)"
                     >
-                      {permit.type}
+                      {formatPermitType(permit.type)}
                     </text>
                   </g>
                 );
@@ -217,8 +217,10 @@ export default function HeatmapFloorplan({
               <p className="font-medium text-slate-300">Active Permits:</p>
               {hoveredPermits.map((p) => (
                 <p key={p.permit_id} className="text-slate-500">
-                  {p.type} ({p.permit_id})
-                  {p.type === "Hot Work" ? " -- no fire watch logged" : ""}
+                  {formatPermitType(p.type)} ({p.permit_id})
+                  {(p.type === "hot_work" || p.type === "Hot Work") && !p.fire_watch_logged
+                    ? " -- no fire watch logged"
+                    : ""}
                 </p>
               ))}
             </div>
