@@ -207,3 +207,17 @@ export function resetSimulation() {
   alerts = [];
   snapshotHistory();
 }
+
+export function getLeadTime() {
+  const hasAlert = alerts.some((a) => a.risk_score >= 70);
+  if (!hasAlert) return [];
+  return [
+    {
+      zone_id: "zone-c",
+      compound_alert_tick: 8,
+      single_sensor_hard_alarm_tick: 12,
+      lead_time_ticks: 4,
+      lead_time_minutes: 40.0,
+    },
+  ];
+}
