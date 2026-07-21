@@ -27,6 +27,7 @@ ENV/
 # Packaging / build
 build/
 dist/
+dist-ssr/
 *.egg-info/
 .eggs/
 pip-wheel-metadata/
@@ -60,16 +61,17 @@ data/generated/
 # Node / React (frontend - feature/frontend-dashboard)
 # ==========================================================
 node_modules/
-dist-ssr/
-.vite/
+frontend/node_modules/
 frontend/build/
 frontend/dist/
 
 # Frontend env
 frontend/.env
 frontend/.env.local
+frontend/.env.*.local
 
 # Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
