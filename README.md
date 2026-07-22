@@ -1,6 +1,42 @@
 # Evolv_SentriX
 An AI-driven Industrial Safety Intelligence Platform that integrates multi-source industrial data to predict safety hazards, assess compound risks, generate explainable alerts, and assist in proactive incident prevention.
 
+## How to Run
+
+### Prerequisites
+- **Python 3.8+**
+- **Node.js** (for the frontend)
+
+### 1. Start the Backend
+The backend runs on FastAPI and uses a synthetic data generator. Run it from the root directory so the modules resolve correctly.
+
+```bash
+# 1. Install dependencies (it is recommended to use a virtual environment)
+pip install -r requirements.txt
+
+# 2. (Optional) Set API Key for Claude-powered RAG and emergency reports
+export ANTHROPIC_API_KEY="your-api-key-here"
+
+# 3. Start the server
+uvicorn backend.main:app --reload --port 8000
+```
+*The backend API will be available at `http://localhost:8000`.*
+
+### 2. Start the Frontend
+The frontend is a React application powered by Vite.
+
+```bash
+# 1. Navigate to the frontend directory
+cd frontend
+
+# 2. Install dependencies
+npm install
+
+# 3. Start the development server
+npm run dev
+```
+*The frontend UI will typically be available at `http://localhost:5173` (or the port Vite provides).*
+
 ## Synthetic Data (`data_sim/`)
 
 **All data in this project is 100% synthetic.** We do not have access to a real
