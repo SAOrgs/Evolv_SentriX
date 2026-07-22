@@ -11,15 +11,24 @@ export default function AlertsPage() {
 
   useEffect(() => {
     async function load() {
-      const [al, z] = await Promise.all([getAlerts(), getZones()]);
-      setAlerts(al);
-      setZones(z);
-      setLoading(false);
+      try {
+        const [al, z] = await Promise.all([getAlerts(), getZones()]);
+        setAlerts(al);
+        setZones(z);
+      } catch (err) {
+        console.error("Failed to load alerts:", err);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
     const id = setInterval(async () => {
-      const al = await getAlerts();
-      setAlerts(al);
+      try {
+        const al = await getAlerts();
+        setAlerts(al);
+      } catch (err) {
+        console.error("Poll error (alerts):", err);
+      }
     }, POLL_MS);
     return () => clearInterval(id);
   }, []);
@@ -65,7 +74,7 @@ export default function AlertsPage() {
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
           {sorted.map((alert) => (
             <AlertCard
-              key={alert.alert_id}
+              key={alert.alert_id || `${alert.zone_id}-${alert.timestamp}`}
               alert={alert}
               zoneName={zoneNames[alert.zone_id] || alert.zone_id}
             />

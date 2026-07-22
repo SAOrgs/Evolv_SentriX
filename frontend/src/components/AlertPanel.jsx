@@ -38,7 +38,7 @@ export default function AlertPanel({ alerts, zones, onViewReport }) {
           <ul className="divide-y divide-white/[0.04]">
             {sorted.map((alert) => (
               <AlertCard
-                key={alert.alert_id}
+                key={alert.alert_id || `${alert.zone_id}-${alert.timestamp}`}
                 alert={alert}
                 zoneName={zoneNames[alert.zone_id] || alert.zone_id}
                 onViewReport={onViewReport}

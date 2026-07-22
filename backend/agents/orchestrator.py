@@ -435,6 +435,7 @@ class Orchestrator:
                 zid, _fallback_explanation(self.zone_names.get(zid, zid), risk)
             )
             alerts.append({
+                "alert_id": f"ALERT-{zid}-{risk.score}",
                 "zone_id": zid,
                 "risk_score": risk.score,
                 "trigger_signals": risk.trigger_signals,

@@ -26,7 +26,7 @@ export default function Dashboard() {
   const [tick, setTick] = useState(0);
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
-  const [selectedZoneId, setSelectedZoneId] = useState("zone-c");
+  const [selectedZoneId, setSelectedZoneId] = useState(null);
   const [activeReportModal, setActiveReportModal] = useState(null);
 
   // -- initial load ---------------------------------------------------------
@@ -128,14 +128,6 @@ export default function Dashboard() {
     leadTimeActive = true;
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-slate-400">Loading live data stream...</p>
-      </div>
-    );
-  }
-
   const handleViewReport = useCallback(async (zoneId) => {
     try {
       const data = await triggerEmergency(zoneId);
@@ -144,6 +136,14 @@ export default function Dashboard() {
       console.error("Failed to trigger emergency report flow:", err);
     }
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-sm text-slate-400">Loading live data stream...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col gap-3">

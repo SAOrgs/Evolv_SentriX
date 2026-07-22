@@ -18,23 +18,26 @@ const PERMITS = [
   {
     permit_id: "PTW-001",
     zone_id: "zone-a",
-    type: "Hot Work",
+    type: "hot_work",
     start_time: "2025-06-15T08:00:00Z",
     end_time:   "2025-06-15T14:00:00Z",
+    fire_watch_logged: false,
   },
   {
     permit_id: "PTW-002",
     zone_id: "zone-c",
-    type: "Confined Space Entry",
+    type: "confined_space",
     start_time: "2025-06-15T06:00:00Z",
     end_time:   "2025-06-15T18:00:00Z",
+    fire_watch_logged: true,
   },
   {
     permit_id: "PTW-003",
     zone_id: "zone-d",
-    type: "Crane Lift",
+    type: "general_maintenance",
     start_time: "2025-06-15T09:00:00Z",
     end_time:   "2025-06-15T12:00:00Z",
+    fire_watch_logged: true,
   },
 ];
 
