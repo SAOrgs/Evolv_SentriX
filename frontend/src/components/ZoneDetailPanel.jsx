@@ -100,7 +100,10 @@ export default function ZoneDetailPanel({ zone, score, permits, onClose }) {
 
         {/* Timeline link */}
         <div className="border-t border-white/[0.06] pt-3">
-          <button className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-white/[0.06] hover:text-slate-200">
+          <button 
+            onClick={() => window.location.hash = "timeline"}
+            className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-white/[0.06] hover:text-slate-200"
+          >
             View Timeline
           </button>
         </div>
