@@ -321,7 +321,7 @@ def trigger_emergency(
         "incident_report", "status": "MOCKED - no real notifications sent"
     }
     """
-    thr = EMERGENCY_THRESHOLD if threshold is None else threshold
+    thr = ALERT_THRESHOLD if threshold is None else threshold
 
     # Lookup current alert for this zone
     alerts = _orch().get_alerts(threshold=thr)

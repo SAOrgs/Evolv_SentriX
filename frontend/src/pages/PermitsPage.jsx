@@ -12,17 +12,26 @@ export default function PermitsPage() {
 
   useEffect(() => {
     async function load() {
-      const [pm, z, rs] = await Promise.all([getPermits(), getZones(), getRiskScores()]);
-      setPermits(pm);
-      setZones(z);
-      setRiskScores(rs);
-      setLoading(false);
+      try {
+        const [pm, z, rs] = await Promise.all([getPermits(), getZones(), getRiskScores()]);
+        setPermits(pm);
+        setZones(z);
+        setRiskScores(rs);
+      } catch (err) {
+        console.error("Failed to load permits:", err);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
     const id = setInterval(async () => {
-      const [pm, rs] = await Promise.all([getPermits(), getRiskScores()]);
-      setPermits(pm);
-      setRiskScores(rs);
+      try {
+        const [pm, rs] = await Promise.all([getPermits(), getRiskScores()]);
+        setPermits(pm);
+        setRiskScores(rs);
+      } catch (err) {
+        console.error("Poll error (permits):", err);
+      }
     }, POLL_MS);
     return () => clearInterval(id);
   }, []);

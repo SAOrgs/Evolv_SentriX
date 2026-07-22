@@ -131,10 +131,10 @@ export default function HeatmapFloorplan({
                 x={zone.x + zone.width / 2}
                 y={zone.y + zone.height / 2 - 12}
                 textAnchor="middle"
-                fontSize="10"
-                fontWeight="500"
+                fontSize="12"
+                fontWeight="600"
                 fontFamily="sans-serif"
-                fill="rgba(255,255,255,0.55)"
+                fill="rgba(255,255,255,0.88)"
                 letterSpacing="0.3"
               >
                 {zone.name}
@@ -143,10 +143,10 @@ export default function HeatmapFloorplan({
               {/* Risk score */}
               <text
                 x={zone.x + zone.width / 2}
-                y={zone.y + zone.height / 2 + 12}
+                y={zone.y + zone.height / 2 + 14}
                 textAnchor="middle"
-                fontSize="22"
-                fontWeight="700"
+                fontSize="24"
+                fontWeight="800"
                 fontFamily="sans-serif"
                 fill={riskAccent(score)}
                 style={{ transition: "fill 0.5s ease" }}

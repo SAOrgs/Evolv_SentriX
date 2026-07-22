@@ -13,7 +13,7 @@ import {
 import { getRiskScoreHistory } from "../api/client";
 import { riskAccent } from "../utils/riskColor";
 
-const ALERT_THRESHOLD = 70;
+const ALERT_THRESHOLD = 60;
 const EVAC_THRESHOLD = 90;
 const POLL_MS = 2000;
 

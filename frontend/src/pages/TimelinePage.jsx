@@ -8,20 +8,33 @@ const POLL_MS = 2000;
 export default function TimelinePage() {
   const [zones, setZones] = useState([]);
   const [riskScores, setRiskScores] = useState([]);
-  const [selectedZoneId, setSelectedZoneId] = useState("zone-c");
+  const [selectedZoneId, setSelectedZoneId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const [z, rs] = await Promise.all([getZones(), getRiskScores()]);
-      setZones(z);
-      setRiskScores(rs);
-      setLoading(false);
+      try {
+        const [z, rs] = await Promise.all([getZones(), getRiskScores()]);
+        setZones(z);
+        setRiskScores(rs);
+        if (z.length > 0) {
+          const preferred = z.find((zone) => zone.zone_id === "zone-3") || z[0];
+          setSelectedZoneId(preferred.zone_id);
+        }
+      } catch (err) {
+        console.error("Failed to load timeline data:", err);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
     const id = setInterval(async () => {
-      const rs = await getRiskScores();
-      setRiskScores(rs);
+      try {
+        const rs = await getRiskScores();
+        setRiskScores(rs);
+      } catch (err) {
+        console.error("Poll error (timeline):", err);
+      }
     }, POLL_MS);
     return () => clearInterval(id);
   }, []);

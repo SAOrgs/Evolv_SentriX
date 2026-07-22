@@ -78,13 +78,18 @@ export default function Layout({ children, activePage, onNavigate }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header */}
         <header className="flex h-12 flex-shrink-0 items-center justify-between border-b border-white/[0.06] bg-[#080e1e]/60 px-6 backdrop-blur-md">
-          <h1 className="text-xs font-semibold tracking-wide text-slate-300">
-            Compound Risk Intelligence Platform
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-sm font-semibold tracking-wide text-slate-200">
+              Compound Risk Intelligence Platform
+            </h1>
+            <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-400">
+              DEMO MODE
+            </span>
+          </div>
           <div className="flex items-center gap-2">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            <span className="text-[10px] uppercase tracking-wider text-slate-500">
-              Synthetic Data / Prototype
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-medium text-slate-400">
+              Live Stream connected
             </span>
           </div>
         </header>
@@ -93,6 +98,14 @@ export default function Layout({ children, activePage, onNavigate }) {
         <main className="flex flex-1 flex-col overflow-hidden p-3">
           {children}
         </main>
+
+        {/* Persistent Disclaimer Footer */}
+        <footer className="flex h-7 flex-shrink-0 items-center justify-between border-t border-white/[0.06] bg-[#040711] px-4 text-[11px] text-slate-500">
+          <span>SentriX Worker Safety Platform (Hackathon Prototype)</span>
+          <span className="font-semibold text-slate-400">
+            Notice: All gas sensor streams, permits, and maintenance logs are 100% synthetic generated data.
+          </span>
+        </footer>
       </div>
     </div>
   );
