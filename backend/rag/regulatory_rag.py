@@ -69,6 +69,29 @@ def _ensure_collection():
     return _COLLECTION
 
 
+def _simple_keyword_retrieve(query: str, top_k: int = 5) -> list[dict]:
+    """Fallback keyword search over corpus when ChromaDB is unavailable."""
+    from .corpus import get_corpus
+    corpus = get_corpus()
+    query_words = [w.strip(",.()[]").lower() for w in query.split() if len(w) > 2]
+    scored = []
+    for doc in corpus:
+        text_lower = (doc["citation"] + " " + doc["text"]).lower()
+        score = sum(1 for w in query_words if w in text_lower)
+        scored.append((score, doc))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [
+        {
+            "id": doc["id"],
+            "type": doc["type"],
+            "citation": doc["citation"],
+            "text": doc["text"],
+            "distance": 0.5,
+        }
+        for score, doc in scored[:top_k]
+    ]
+
+
 # --- Retrieval ------------------------------------------------------------
 def retrieve(query: str, top_k: int = 5) -> list[dict]:
     """
@@ -76,18 +99,22 @@ def retrieve(query: str, top_k: int = 5) -> list[dict]:
     for a given query text.
     Returns: [{"id": str, "type": str, "citation": str, "text": str, "distance": float}, ...]
     """
-    coll = _ensure_collection()
-    results = coll.query(query_texts=[query], n_results=top_k)
-    docs = []
-    for i, doc_id in enumerate(results["ids"][0]):
-        docs.append({
-            "id": doc_id,
-            "type": results["metadatas"][0][i]["type"],
-            "citation": results["metadatas"][0][i]["citation"],
-            "text": results["documents"][0][i],
-            "distance": results["distances"][0][i],
-        })
-    return docs
+    try:
+        coll = _ensure_collection()
+        results = coll.query(query_texts=[query], n_results=top_k)
+        docs = []
+        for i, doc_id in enumerate(results["ids"][0]):
+            docs.append({
+                "id": doc_id,
+                "type": results["metadatas"][0][i]["type"],
+                "citation": results["metadatas"][0][i]["citation"],
+                "text": results["documents"][0][i],
+                "distance": results["distances"][0][i],
+            })
+        return docs
+    except Exception as exc:
+        logger.info("Chroma retrieval fallback to keyword retrieval: %s", exc)
+        return _simple_keyword_retrieve(query, top_k=top_k)
 
 
 # --- Claude synthesis -----------------------------------------------------

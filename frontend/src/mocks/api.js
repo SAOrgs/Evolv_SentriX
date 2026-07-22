@@ -221,3 +221,24 @@ export function getLeadTime() {
     },
   ];
 }
+
+export function triggerEmergency(zoneId = "zone-c") {
+  const zone = ZONES.find((z) => z.zone_id === zoneId) || ZONES[2];
+  const score = riskScores[zoneId] || 85;
+  return {
+    zone_id: zoneId,
+    zone_name: zone.name,
+    risk_score: score,
+    timestamp: now(),
+    evacuation_instruction: `EVACUATION ORDER: ${zone.name} (${zoneId}). All non-essential personnel must evacuate immediately via designated emergency exits. Cease all hot work and confined space operations.`,
+    alert_channels: [
+      "SMS: Emergency contact list (12 personnel)",
+      "PA System: Plant-wide announcement triggered",
+      "Mobile App: Push notification sent to all on-site personnel",
+      "Control Room: Alarm escalated to site emergency coordinator",
+      "SCADA: Automated isolation sequence initiated",
+    ],
+    incident_report: `PRELIMINARY INCIDENT REPORT\n\nIncident Classification: High compound risk condition\nDate/Time: ${now()}\nLocation: ${zone.name} (${zoneId})\nRisk Score: ${score}/100\n\nContributing Factors:\nMultiple co-occurring sub-critical signals detected in ${zone.name}.\n\nImmediate Response:\nEvacuation protocol initiated for ${zone.name}. Emergency response team dispatched.\n\nRegulatory Reference:\nOISD STD 105 (Fire Protection Facilities), Clause 5.2.1.`,
+    status: "MOCKED - no real notifications sent",
+  };
+}

@@ -60,3 +60,8 @@ export async function getLeadTime() {
   if (API_MODE === "mock") return mockApi.getLeadTime();
   return fetchJson("/api/lead-time");
 }
+
+export async function triggerEmergency(zoneId) {
+  if (API_MODE === "mock") return mockApi.triggerEmergency(zoneId);
+  return fetchJson(`/api/emergency/trigger?zone_id=${zoneId}`, { method: "POST" });
+}

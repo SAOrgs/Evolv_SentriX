@@ -6,11 +6,13 @@ import {
   getPermits,
   getLeadTime,
   advanceSimulation,
+  triggerEmergency,
 } from "../api/client";
 import HeatmapFloorplan from "../components/HeatmapFloorplan";
 import ZoneDetailPanel from "../components/ZoneDetailPanel";
 import RiskTimeline from "../components/RiskTimeline";
 import AlertPanel from "../components/AlertPanel";
+import IncidentReportModal from "../components/IncidentReportModal";
 import { riskAccent, riskGlow } from "../utils/riskColor";
 
 const POLL_INTERVAL_MS = 2000;
@@ -25,6 +27,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
   const [selectedZoneId, setSelectedZoneId] = useState("zone-c");
+  const [activeReportModal, setActiveReportModal] = useState(null);
 
   // -- initial load ---------------------------------------------------------
   useEffect(() => {
@@ -133,6 +136,15 @@ export default function Dashboard() {
     );
   }
 
+  const handleViewReport = useCallback(async (zoneId) => {
+    try {
+      const data = await triggerEmergency(zoneId);
+      setActiveReportModal(data);
+    } catch (err) {
+      console.error("Failed to trigger emergency report flow:", err);
+    }
+  }, []);
+
   return (
     <div className="flex h-full flex-col gap-3">
       {/* ── Controls ──────────────────────────────────────────── */}
@@ -223,10 +235,18 @@ export default function Dashboard() {
             <RiskTimeline zoneId={selectedZoneId} zoneName={selectedZone?.name} />
           </div>
           <div className="min-h-0 flex-1">
-            <AlertPanel alerts={alerts} zones={zones} />
+            <AlertPanel alerts={alerts} zones={zones} onViewReport={handleViewReport} />
           </div>
         </div>
       </div>
+
+      {/* Incident Report & Evacuation Flow Modal */}
+      {activeReportModal && (
+        <IncidentReportModal
+          reportData={activeReportModal}
+          onClose={() => setActiveReportModal(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { riskAccent, riskBgClass, riskLabel, riskGlow } from "../utils/riskColor";
 
-export default function AlertPanel({ alerts, zones }) {
+export default function AlertPanel({ alerts, zones, onViewReport }) {
   const zoneNames = {};
   for (const z of zones) zoneNames[z.zone_id] = z.name;
 
@@ -41,6 +41,7 @@ export default function AlertPanel({ alerts, zones }) {
                 key={alert.alert_id}
                 alert={alert}
                 zoneName={zoneNames[alert.zone_id] || alert.zone_id}
+                onViewReport={onViewReport}
               />
             ))}
           </ul>
@@ -52,7 +53,7 @@ export default function AlertPanel({ alerts, zones }) {
 
 // ---------------------------------------------------------------------------
 
-function AlertCard({ alert, zoneName }) {
+function AlertCard({ alert, zoneName, onViewReport }) {
   const isEvac = alert.risk_score >= 90;
   const accent = riskAccent(alert.risk_score);
 
@@ -122,6 +123,16 @@ function AlertCard({ alert, zoneName }) {
       <p className="mt-2 text-[10px] text-slate-600">
         {formatTimestamp(alert.timestamp)}
       </p>
+
+      {/* Incident Report Trigger Button */}
+      {onViewReport && alert.risk_score >= 60 && (
+        <button
+          onClick={() => onViewReport(alert.zone_id)}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:bg-red-500/20 hover:text-white"
+        >
+          View Incident Report & Evacuation Plan
+        </button>
+      )}
 
       {/* Evacuation call-out */}
       {isEvac && (
