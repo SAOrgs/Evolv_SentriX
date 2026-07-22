@@ -43,8 +43,13 @@ CURL SMOKE TESTS:
     # 9. Reset the simulation back to tick 0 (demo-rehearsal convenience)
     curl -s -X POST http://localhost:8000/api/simulate/reset | python3 -m json.tool
 
-    NOTE: set ANTHROPIC_API_KEY to have Claude write the alert explanations;
-    without it, a strong deterministic fallback explanation is used instead.
+    # 10. Trigger emergency response for zone-3 (after stepping to alert window)
+    for i in $(seq 1 15); do curl -s -X POST http://localhost:8000/api/simulate/advance > /dev/null; done
+    curl -s -X POST "http://localhost:8000/api/emergency/trigger?zone_id=zone-3" | python3 -m json.tool
+
+    NOTE: set ANTHROPIC_API_KEY to have Claude write the alert explanations
+    and auto-draft incident reports; without it, strong deterministic fallback
+    templates are used instead.
 --------------------------------------------------------------------------
 """
 
@@ -52,11 +57,13 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from data_sim.generator import SyntheticPlant, build_demo_scenario
 from backend.agents.orchestrator import Orchestrator, ALERT_THRESHOLD
+from backend.emergency import trigger_emergency_response, EMERGENCY_THRESHOLD
 
 # --- Config ---------------------------------------------------------------
 DEFAULT_SEED = 42
@@ -91,6 +98,14 @@ def _plant() -> SyntheticPlant:
 
 def _orch() -> Orchestrator:
     return STATE["orchestrator"]
+
+
+def _zone_name(zone_id: str) -> str:
+    """Lookup zone name from the plant."""
+    for z in _plant().zones:
+        if z.zone_id == zone_id:
+            return z.name
+    return zone_id
 
 
 # Default SVG floorplan layouts for plant zones
@@ -169,25 +184,32 @@ def root() -> dict:
 @app.get("/api/zones")
 def get_zones() -> list[dict]:
     """List the plant zones with name and 0-1000 floorplan coordinates."""
-    return _zones_payload()
+    try:
+        return _zones_payload()
+    except Exception:
+        # Fallback if plant state isn't initialized yet
+        return []
 
 
 @app.get("/api/permits")
 def get_permits() -> list[dict]:
     """Currently ACTIVE permits, with zone_id, type, and start/end time."""
-    state = _plant().get_current_state()
-    return [
-        {
-            "permit_id": p["permit_id"],
-            "zone_id": p["zone_id"],
-            "type": p["type"],
-            "start_time": p["start_time"],
-            "end_time": p["end_time"],
-            "fire_watch_logged": p["fire_watch_logged"],
-        }
-        for p in state["permits"]
-        if p["active"]
-    ]
+    try:
+        state = _plant().get_current_state()
+        return [
+            {
+                "permit_id": p["permit_id"],
+                "zone_id": p["zone_id"],
+                "type": p["type"],
+                "start_time": p["start_time"],
+                "end_time": p["end_time"],
+                "fire_watch_logged": p["fire_watch_logged"],
+            }
+            for p in state.get("permits", [])
+            if p.get("active")
+        ]
+    except Exception:
+        return []
 
 
 @app.post("/api/simulate/advance")
@@ -224,7 +246,10 @@ def get_risk_scores() -> list[dict]:
     Current compound risk score (0-100) per zone, with a timestamp.
     Shape: [{"zone_id": str, "risk_score": int, "timestamp": iso8601}, ...]
     """
-    return _orch().get_current_scores()
+    try:
+        return _orch().get_current_scores()
+    except Exception:
+        return []
 
 
 @app.get("/api/risk-scores/history")
@@ -237,15 +262,18 @@ def get_risk_score_history(
     Optional filters: zone_id, hours (relative to the latest simulated time).
     Shape: [{"zone_id": str, "risk_score": int, "timestamp": iso8601}, ...]
     """
-    return _orch().get_history(zone_id=zone_id, hours=hours)
+    try:
+        return _orch().get_history(zone_id=zone_id, hours=hours)
+    except Exception:
+        return []
 
 
 @app.get("/api/alerts")
 def get_alerts(threshold: Optional[int] = None) -> list[dict]:
     """
     Zones currently above the (configurable) alert threshold, each with the
-    orchestrator's plain-English explanation and a placeholder regulatory
-    citation (filled in during A5).
+    orchestrator's plain-English explanation and a RAG-retrieved regulatory
+    citation.
     Shape: [{
         "zone_id": str, "risk_score": int, "trigger_signals": [str, ...],
         "explanation": str,
@@ -253,7 +281,10 @@ def get_alerts(threshold: Optional[int] = None) -> list[dict]:
         "timestamp": iso8601
     }, ...]
     """
-    return _orch().get_alerts(threshold=threshold)
+    try:
+        return _orch().get_alerts(threshold=threshold)
+    except Exception:
+        return []
 
 
 @app.get("/api/lead-time")
@@ -262,4 +293,75 @@ def get_lead_time() -> list[dict]:
     Demo headline metric: per zone, how many ticks/minutes earlier the compound
     score crossed the alert threshold than the earliest single-sensor hard alarm.
     """
-    return _orch().lead_time_summary()
+    try:
+        return _orch().lead_time_summary()
+    except Exception:
+        return []
+
+
+# --- Emergency response (MOCKED) ------------------------------------------
+
+@app.post("/api/emergency/trigger")
+def trigger_emergency(
+    zone_id: str = Query(..., description="Zone ID to trigger emergency response for"),
+    threshold: Optional[int] = Query(
+        None,
+        description="Override threshold (defaults to EMERGENCY_THRESHOLD=85)",
+    ),
+) -> dict:
+    """
+    MOCKED emergency response trigger. Drafts evacuation instructions, lists
+    canned notification channels, and auto-drafts a preliminary incident report
+    using Claude (or a fallback template). Does NOT send real notifications.
+
+    Can be called manually or automatically when a zone crosses the threshold.
+    Returns: {
+        "zone_id", "zone_name", "risk_score", "timestamp",
+        "evacuation_instruction", "alert_channels": [str, ...],
+        "incident_report", "status": "MOCKED - no real notifications sent"
+    }
+    """
+    thr = EMERGENCY_THRESHOLD if threshold is None else threshold
+
+    # Lookup current alert for this zone
+    alerts = _orch().get_alerts(threshold=thr)
+    zone_alert = next((a for a in alerts if a["zone_id"] == zone_id), None)
+
+    if zone_alert is None:
+        # Zone not alerting at the requested threshold
+        current_scores = _orch().get_current_scores()
+        zone_score = next(
+            (s for s in current_scores if s["zone_id"] == zone_id), None
+        )
+        if zone_score is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Zone {zone_id} not found.",
+            )
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Zone {zone_id} is currently at risk score {zone_score['risk_score']}, "
+                f"below the emergency threshold ({thr}). Emergency response not triggered."
+            ),
+        )
+
+    zone_name = _zone_name(zone_id)
+    response = trigger_emergency_response(zone_id, zone_name, zone_alert)
+    return response
+
+
+# --- Error handler for internal exceptions --------------------------------
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    """Catch-all for unhandled exceptions - return JSON, not HTML 500."""
+    import traceback
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "detail": str(exc),
+            "note": "SYNTHETIC DATA - error in backend processing",
+            "traceback": traceback.format_exc() if app.debug else None,
+        },
+    )

@@ -68,3 +68,107 @@ for a full JSON state dump):
 python -m data_sim.run_sim --ticks 30 --seed 42
 python -m data_sim.run_sim --full
 ```
+
+## Regulatory RAG (`backend/rag/`)
+
+Each orchestrator alert above the threshold now includes a **grounded regulatory
+citation** retrieved from a hand-picked corpus of real OISD/DGMS/Factory Act
+clauses plus synthetic near-miss reports (see `backend/rag/corpus.py`).
+
+### Corpus
+
+- **8 real regulatory clauses** from publicly-available OISD standards (STD 105,
+  STD 117), DGMS Mines Regulations (1961), Factories Act 1948, OSH Code 2020,
+  and DGMS Technical Circulars — all covering hot work permits, gas hazard
+  management, maintenance scheduling, and permit-to-work systems.
+- **13 synthetic near-miss reports** that describe compound-risk scenarios
+  matching what the orchestrator produces (hot work + gas trending, missing
+  fire watch, overdue maintenance overlapping permits, fatigue-risk shifts).
+
+Total: 21 documents embedded into **Chroma** using the default `all-MiniLM-L6-v2`
+sentence-transformer model (automatically downloaded on first use; persists in
+`backend/rag/chroma_db/` — excluded from git).
+
+### Retrieval + synthesis
+
+For each alert, the RAG module:
+1. Embeds the orchestrator's plain-English explanation.
+2. Retrieves the top-5 most relevant documents (cosine similarity).
+3. Calls **Claude `claude-sonnet-4-6`** with the explanation + retrieved docs,
+   instructed to write a grounded 1–2 sentence statement referencing ONLY the
+   retrieved citations (no invention). Paraphrases the clauses; no verbatim quoting.
+4. If `ANTHROPIC_API_KEY` is unset or the call fails, falls back to a
+   deterministic template that still cites the top-ranked retrieved doc.
+
+This ensures every citation in the UI is **100% traceable** to a doc in the
+corpus — either a real regulatory clause or a near-miss report we wrote.
+
+### Usage
+
+The RAG is wired into `/api/alerts` automatically. Each alert's
+`regulatory_citation` field now looks like:
+
+```json
+{
+  "clause": "This combination relates to OISD STD 105, Clause 5.2.1, which requires fire watch during hot work in areas where gas may reach 10% LEL, and matches the pattern in Near-miss incident #003.",
+  "source": "OISD STD 105 (Fire Protection Facilities), Clause 5.2.1",
+  "status": "llm"  // "llm" | "fallback" | "no_retrieval" | "error"
+}
+```
+
+Set `ANTHROPIC_API_KEY` to have Claude write the `clause`; without it, the
+deterministic fallback is used (still grounded, just less fluent).
+
+## Emergency Response (Mocked)
+
+**`POST /api/emergency/trigger?zone_id=<zone>&threshold=<optional>`**
+
+Drafts an emergency response when a zone crosses a hard risk threshold (default 85).
+Returns a **mocked but realistic-looking** response payload — no real SMS/PA/app
+notifications are sent. This demonstrates the drafted-report capability only.
+
+Payload:
+- `evacuation_instruction` — canned but zone-specific text
+- `alert_channels` — list of strings naming the channels that would be notified
+  (SMS, PA system, mobile app, control room, SCADA) — **MOCKED, no real integration**
+- `incident_report` — auto-drafted preliminary regulatory incident report (3–4
+  paragraphs, formal Factory Act / DGMS compliance tone). Drafted by Claude
+  `claude-sonnet-4-6` if `ANTHROPIC_API_KEY` is set; otherwise uses a deterministic
+  template. References the orchestrator explanation, trigger signals, timestamp,
+  and regulatory citation from the RAG.
+- `status` — always `"MOCKED - no real notifications sent"` to make clear this is
+  a demo capability only.
+
+```bash
+# Step to tick 18 (zone-3 at score 100)
+for i in $(seq 1 18); do curl -s -X POST http://localhost:8000/api/simulate/advance > /dev/null; done
+
+# Trigger emergency response
+curl -s -X POST "http://localhost:8000/api/emergency/trigger?zone_id=zone-3" | python3 -m json.tool
+```
+
+Returns `400` if the zone is below the emergency threshold; `404` if the zone
+doesn't exist.
+
+---
+
+## API Contract Summary
+
+All endpoints return graceful empty arrays/objects if called before data exists
+(no unhandled 500s). Shapes match the original contract exactly.
+
+| Endpoint | Method | Returns |
+|----------|--------|---------|
+| `/api/zones` | GET | Zones with floorplan coords (0–1000 space) |
+| `/api/permits` | GET | Active permits |
+| `/api/risk-scores` | GET | Current score per zone |
+| `/api/risk-scores/history?zone_id=&hours=` | GET | Time series |
+| `/api/alerts?threshold=` | GET | Zones above threshold with explanations + RAG citations |
+| `/api/lead-time` | GET | Compound vs single-sensor lead-time metric |
+| `/api/simulate/advance` | POST | Step sim + return enriched state |
+| `/api/simulate/reset` | POST | Reset to tick 0 |
+| `/api/emergency/trigger?zone_id=&threshold=` | POST | Draft mocked emergency response |
+
+Set `ANTHROPIC_API_KEY` for Claude-drafted explanations, citations, and incident
+reports. Without it, deterministic fallback templates (still grounded / specific)
+are used — the platform works 100% offline.

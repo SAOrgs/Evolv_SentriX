@@ -283,13 +283,25 @@ def generate_explanation(zone_name: str, risk: ZoneRisk) -> str:
     return llm if llm else _fallback_explanation(zone_name, risk)
 
 
-# Placeholder regulatory citation - filled in by the RAG module in A5.
-def _placeholder_citation() -> dict:
-    return {
-        "clause": "Pending regulatory lookup",
-        "source": "TBD (A5 - regulatory RAG)",
-        "status": "pending",
-    }
+# RAG-based regulatory citation (lazy import to avoid heavyweight deps until needed).
+def _rag_citation(explanation: str) -> dict:
+    """Retrieve + synthesize a grounded citation via the RAG module."""
+    try:
+        from backend.rag import generate_citation
+        result = generate_citation(explanation, top_k=5)
+        # Flatten for the alert payload (drop retrieved_docs to keep it light).
+        return {
+            "clause": result["clause"],
+            "source": result["source"],
+            "status": result["status"],
+        }
+    except Exception as exc:
+        logger.warning("RAG citation failed (%s); using placeholder.", exc)
+        return {
+            "clause": "Regulatory citation temporarily unavailable.",
+            "source": "N/A",
+            "status": "error",
+        }
 
 
 # ====================================================================== #
@@ -419,14 +431,15 @@ class Orchestrator:
         for zid, risk in self.current.items():
             if risk.score < thr:
                 continue
+            explanation = self._explanations.get(
+                zid, _fallback_explanation(self.zone_names.get(zid, zid), risk)
+            )
             alerts.append({
                 "zone_id": zid,
                 "risk_score": risk.score,
                 "trigger_signals": risk.trigger_signals,
-                "explanation": self._explanations.get(
-                    zid, _fallback_explanation(self.zone_names.get(zid, zid), risk)
-                ),
-                "regulatory_citation": _placeholder_citation(),
+                "explanation": explanation,
+                "regulatory_citation": _rag_citation(explanation),
                 "timestamp": risk.timestamp,
             })
         # highest risk first
