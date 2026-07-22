@@ -308,6 +308,13 @@ def _rag_citation(explanation: str) -> dict:
 # Orchestrator engine: drives per-tick fusion + history + alerts
 # ====================================================================== #
 class Orchestrator:
+    """
+    BUG #3: History exists only in memory - lost on restart.
+    For production persistence, consider:
+      - SQLite for history storage (simple, local)
+      - PostgreSQL/TimescaleDB for multi-user production
+      - Redis for distributed caching + pub/sub
+    """
     def __init__(self, alert_threshold: int = ALERT_THRESHOLD):
         self.alert_threshold = alert_threshold
         # zone_id -> list[{tick, timestamp, score}]
@@ -316,7 +323,7 @@ class Orchestrator:
         self.current: dict[str, ZoneRisk] = {}
         # zone_id -> explanation string (latest, for alerting zones)
         self._explanations: dict[str, str] = {}
-        # explanation cache keyed by (zone_id, signal-type signature)
+        # explanation cache keyed by (zone_id, signal-type signature, gas_bucket)
         self._expl_cache: dict[tuple, str] = {}
         self.zone_names: dict[str, str] = {}
 
@@ -366,7 +373,26 @@ class Orchestrator:
 
     # ------------------------------------------------------------------ #
     def _explain_cached(self, zid: str, risk: ZoneRisk) -> str:
-        sig = (zid, tuple(sorted({f["signal_type"] for f in risk.findings})))
+        """
+        BUG FIX #5: Include gas ppm value in cache key to regenerate
+        explanations when numeric values change significantly.
+        """
+        # Extract gas ppm for cache key granularity
+        gas_ppm = None
+        for fd in risk.findings:
+            if fd["signal_type"] in (GAS_TRENDING_UP, GAS_OVER_THRESHOLD):
+                gas_ppm = fd.get("details", {}).get("ppm")
+                break
+        
+        # Bucket gas ppm into 10-ppm ranges to avoid cache thrashing
+        gas_bucket = int(gas_ppm / 10) * 10 if gas_ppm is not None else None
+        
+        sig = (
+            zid,
+            tuple(sorted({f["signal_type"] for f in risk.findings})),
+            gas_bucket,  # Add gas bucket to cache key
+        )
+        
         if sig not in self._expl_cache:
             self._expl_cache[sig] = generate_explanation(
                 self.zone_names.get(zid, zid), risk
@@ -426,6 +452,10 @@ class Orchestrator:
         return out
 
     def get_alerts(self, threshold: Optional[int] = None) -> list[dict]:
+        """
+        BUG FIX #4: Added stable alert_id to help frontend track alerts
+        across polling cycles and avoid sync issues.
+        """
         thr = self.alert_threshold if threshold is None else threshold
         alerts: list[dict] = []
         for zid, risk in self.current.items():
@@ -434,14 +464,17 @@ class Orchestrator:
             explanation = self._explanations.get(
                 zid, _fallback_explanation(self.zone_names.get(zid, zid), risk)
             )
+            # Stable alert ID: zone + tick when alert first appeared
+            first_alert_tick = self.compound_cross_tick.get(zid, risk.tick)
             alerts.append({
-                "alert_id": f"ALERT-{zid}-{risk.score}",
+                "alert_id": f"ALERT-{zid}-T{first_alert_tick}",
                 "zone_id": zid,
                 "risk_score": risk.score,
                 "trigger_signals": risk.trigger_signals,
                 "explanation": explanation,
                 "regulatory_citation": _rag_citation(explanation),
                 "timestamp": risk.timestamp,
+                "tick": risk.tick,
             })
         # highest risk first
         alerts.sort(key=lambda a: a["risk_score"], reverse=True)

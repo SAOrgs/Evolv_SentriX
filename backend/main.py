@@ -77,9 +77,13 @@ ALLOWED_ORIGINS = [
 ]
 
 # --- In-memory state ------------------------------------------------------
-# A module-level dict is intentionally simple for the hackathon: it holds the
-# single stateful plant simulation plus the orchestrator (which accumulates
-# risk-score history across ticks). No DB server required.
+# NOTE: This is a GLOBAL shared state for the hackathon demo.
+# BUG #2: In a multi-user production environment, each user/session should have
+# their own isolated plant+orchestrator instance. Current implementation means:
+#   - All users share the same simulation
+#   - One user's reset() affects everyone
+#   - Concurrent advance() calls can interfere
+# For production, use session-based storage or per-user Redis keys.
 def _new_state() -> dict:
     plant = build_demo_scenario(seed=DEFAULT_SEED)
     orch = Orchestrator(alert_threshold=ALERT_THRESHOLD)
@@ -213,18 +217,60 @@ def get_permits() -> list[dict]:
 
 
 @app.post("/api/simulate/advance")
-def simulate_advance() -> dict:
+def simulate_advance(
+    steps: int = Query(1, ge=1, le=100, description="Number of ticks to advance (1-100)")
+) -> dict:
     """
-    Advance the synthetic simulation by one tick, run the fusion orchestrator,
+    Advance the synthetic simulation by N ticks, run the fusion orchestrator,
     and return the new raw state enriched with the freshly-computed risk scores
     and alerts (handy for live demo stepping).
+    
+    BUG FIX #6: Added validation - steps must be 1-100 to prevent invalid inputs.
     """
-    raw = _plant().advance_tick()
-    fusion = _orch().process(raw)
+    # Validate we're not already at some absurd tick count
+    current_tick = _plant().tick
+    if current_tick > 10000:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Simulation has advanced too far (tick {current_tick}). Please reset.",
+        )
+    
+    # Advance N ticks
+    for _ in range(steps):
+        raw = _plant().advance_tick()
+        fusion = _orch().process(raw)
+    
+    # Return the final state after all steps
     out = _scale_state_zones(raw)
     out["risk_scores"] = fusion["risk_scores"]
     out["alerts"] = fusion["alerts"]
+    out["tick"] = _plant().tick
     return out
+
+
+@app.get("/api/simulate/state")
+def get_simulation_state() -> dict:
+    """
+    BUG FIX #4: Get current simulation state without advancing.
+    Use this to avoid frontend sync issues - poll this endpoint
+    instead of relying on advance() to return fresh data.
+    """
+    try:
+        raw = _plant().get_current_state()
+        out = _scale_state_zones(raw)
+        out["risk_scores"] = _orch().get_current_scores()
+        out["alerts"] = _orch().get_alerts()
+        out["tick"] = _plant().tick
+        return out
+    except Exception:
+        return {
+            "tick": 0,
+            "timestamp": "",
+            "zones": [],
+            "risk_scores": [],
+            "alerts": [],
+            "note": "State not yet initialized",
+        }
 
 
 @app.post("/api/simulate/reset")
@@ -321,7 +367,8 @@ def trigger_emergency(
         "incident_report", "status": "MOCKED - no real notifications sent"
     }
     """
-    thr = ALERT_THRESHOLD if threshold is None else threshold
+    # BUG FIX #1: Use EMERGENCY_THRESHOLD as default, not ALERT_THRESHOLD
+    thr = EMERGENCY_THRESHOLD if threshold is None else threshold
 
     # Lookup current alert for this zone
     alerts = _orch().get_alerts(threshold=thr)

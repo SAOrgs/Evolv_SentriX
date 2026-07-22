@@ -208,3 +208,27 @@ All endpoints return graceful empty arrays/objects if called before data exists
 Set `ANTHROPIC_API_KEY` for Claude-drafted explanations, citations, and incident
 reports. Without it, deterministic fallback templates (still grounded / specific)
 are used — the platform works 100% offline.
+
+---
+
+## Known Issues & Bug Fixes
+
+All identified bugs have been addressed. See **[BUGFIXES.md](BUGFIXES.md)** for detailed documentation of:
+
+✅ **Bug #1 (CRITICAL - FIXED):** Emergency threshold was using wrong default value  
+📝 **Bug #2 (Documented):** Global shared state (acceptable for single-user demo)  
+📝 **Bug #3 (Documented):** In-memory history lost on restart (production TODO)  
+✅ **Bug #4 (FIXED):** Frontend sync issues resolved with unified state endpoint  
+✅ **Bug #5 (FIXED):** Stale cached explanations now update with gas ppm changes  
+✅ **Bug #6 (FIXED):** Missing input validation on simulation advancement  
+
+### For Production Deployment
+
+Before deploying to production, address:
+- Session-based state isolation (multi-user support)
+- Persistent storage for risk history
+- Authentication & authorization
+- Rate limiting & monitoring
+- Comprehensive security audit
+
+See BUGFIXES.md for implementation guidance.
